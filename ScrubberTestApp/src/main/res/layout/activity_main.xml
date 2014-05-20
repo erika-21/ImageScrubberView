@@ -1,0 +1,14 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="net.photonmed.scrubbertestapp.app.MainActivity"
+    android:clickable="false"
+    android:background="#000000">
+
+   <net.photonmed.imagescrubber.app.ImageScrubberView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/daScrub" />
+
+</FrameLayout>
