@@ -33,7 +33,7 @@ public class MainActivity extends ActionBarActivity {
         File basePath = getExternalCacheDir();
         String[] allFiles = basePath.list();
         for (String file : allFiles) {
-            if (file.endsWith(".jpeg")) {
+            if (file.endsWith(".png")) {
                 files.add(String.format("file://%s/%s", basePath.getAbsolutePath(), file));
             }
         }

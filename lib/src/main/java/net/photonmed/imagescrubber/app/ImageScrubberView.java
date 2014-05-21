@@ -3,14 +3,13 @@ package net.photonmed.imagescrubber.app;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
-import android.graphics.Canvas;
 import android.os.Build;
 import android.os.Handler;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import com.squareup.picasso.Picasso;
 import net.photonmed.imagescrubber.app.utils.PLog;
@@ -22,7 +21,7 @@ import java.util.Collection;
 /**
  * Primary layout view for Scrubber
  */
-public class ImageScrubberView extends LinearLayout {
+public class ImageScrubberView extends FrameLayout implements SeekBar.OnSeekBarChangeListener {
 
     public static final String TAG = ImageScrubberView.class.getPackage() + " " + ImageScrubberView.class.getSimpleName();
 
@@ -33,6 +32,7 @@ public class ImageScrubberView extends LinearLayout {
     private Context context;
     private int totalSize;
     private SystemUiHider systemUiHider;
+    private int currentIndex;
 
     private static final int HIDER_FLAGS = SystemUiHider.FLAG_HIDE_NAVIGATION;
 
@@ -41,8 +41,8 @@ public class ImageScrubberView extends LinearLayout {
     public void setImageUris(Collection<String> imageUris, int index) {
         this.imageUris = new ArrayList<String>(imageUris);
         this.totalSize = this.imageUris.size();
+        this.seekBar.setMax(totalSize - 1);
         if (index < totalSize) {
-            Picasso.with(this.context).setDebugging(true);
             Picasso.with(this.context).load(this.imageUris.get(index)).into(imageView);
         } else if (totalSize > 0) {
             Picasso.with(this.context).load(this.imageUris.get(0)).into(imageView);
@@ -51,21 +51,11 @@ public class ImageScrubberView extends LinearLayout {
         }
     }
 
-    public ImageScrubberView(Context context) {
-        super(context);
-    }
-
-    public ImageScrubberView(Context context, Collection<String> imageUris) {
-        this(context);
-        this.imageUris = new ArrayList<String>(imageUris);
-    }
-
     public ImageScrubberView(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
 
         this.context = context;
         this.activity = (Activity)context;
-        setOrientation(LinearLayout.VERTICAL);
 
         LayoutInflater inflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         inflater.inflate(R.layout.main_scrubber, this, true);
@@ -115,6 +105,9 @@ public class ImageScrubberView extends LinearLayout {
                         }
                     }
                 });
+        delayedHide(2000);
+
+        this.seekBar.setOnSeekBarChangeListener(this);
     }
 
     Handler mHideHandler = new Handler();
@@ -125,13 +118,6 @@ public class ImageScrubberView extends LinearLayout {
         }
     };
 
-    @Override
-    public void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
-
-        delayedHide(1000);
-    }
-
     /**
      * Schedules a call to hide() in [delay] milliseconds, canceling any
      * previously scheduled calls.
@@ -139,5 +125,25 @@ public class ImageScrubberView extends LinearLayout {
     private void delayedHide(int delayMillis) {
         mHideHandler.removeCallbacks(mHideRunnable);
         mHideHandler.postDelayed(mHideRunnable, delayMillis);
+    }
+
+    @Override
+    public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+        if (fromUser) {
+            if (progress != currentIndex) {
+                currentIndex = progress;
+                Picasso.with(this.context).load(this.imageUris.get(progress)).into(this.imageView);
+            }
+        }
+    }
+
+    @Override
+    public void onStartTrackingTouch(SeekBar seekBar) {
+
+    }
+
+    @Override
+    public void onStopTrackingTouch(SeekBar seekBar) {
+
     }
 }

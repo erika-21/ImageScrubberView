@@ -13,7 +13,8 @@
         android:name=".TestApplication">
         <activity
             android:name="net.photonmed.scrubbertestapp.app.MainActivity"
-            android:label="@string/app_name" >
+            android:label="@string/app_name"
+            android:theme="@style/FullscreenTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

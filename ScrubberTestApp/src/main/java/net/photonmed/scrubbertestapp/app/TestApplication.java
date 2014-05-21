@@ -45,10 +45,12 @@ public class TestApplication extends Application{
         try {
             String[] allFiles = getAssets().list("");
             for (String rawFile : allFiles) {
-               if (rawFile.endsWith("jpeg")) {
+               if (rawFile.endsWith("jpeg") || rawFile.endsWith("jpg")) {
                    InputStream iStream = assetManager.open(rawFile);
                    Bitmap bmp = BitmapFactory.decodeStream(iStream);
-                   String newFile = String.format("%s/%s", baseFilePath, rawFile);
+                   int fileEnd = rawFile.indexOf(".");
+                   String fileName = rawFile.substring(0, fileEnd);
+                   String newFile = String.format("%s/%s.png", baseFilePath, fileName);
                    FileOutputStream out = new FileOutputStream(newFile);
                    bmp.compress(Bitmap.CompressFormat.PNG, 95, out);
                    out.flush();
