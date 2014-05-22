@@ -4,7 +4,8 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <ImageView android:layout_width="match_parent"
+    <net.photonmed.imagescrubber.app.utils.InteractiveImageView
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:keepScreenOn="true"
         android:id="@+id/imageView"
@@ -27,7 +28,7 @@
             android:layout_height="wrap_content"
             android:id="@+id/seekBar"
             android:layout_gravity="bottom"
-            android:layout_alignParentEnd="true"/>
+            android:layout_alignParentEnd="true" />
 
         </LinearLayout>
 

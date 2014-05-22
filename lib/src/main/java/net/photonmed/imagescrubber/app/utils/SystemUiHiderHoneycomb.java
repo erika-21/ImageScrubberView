@@ -7,7 +7,8 @@ import android.view.View;
 import android.view.WindowManager;
 
 /**
- * Created by erikbuttram on 5/20/14.
+ *  Most of this code is helper code provided by the android framework in providing a graceul degradation of hiding the
+ *  system tools like the {@link android.support.v7.app.ActionBar}
  */
 @TargetApi(Build.VERSION_CODES.HONEYCOMB)
 public class SystemUiHiderHoneycomb extends SystemUiHiderBase {
