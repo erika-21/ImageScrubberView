@@ -123,6 +123,7 @@ public class InteractiveImageView extends ImageView {
             //setViewportBottomLeft(currXRange, currYRange);
 
             if (invalidateCanvas) {
+                scrollTo(currX, currY);
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             }
         }
@@ -188,7 +189,7 @@ public class InteractiveImageView extends ImageView {
                 currentViewport.top = currentViewport.bottom - currentHeight;
             }
 
-            ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
+            //ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             return true;
         }
 
