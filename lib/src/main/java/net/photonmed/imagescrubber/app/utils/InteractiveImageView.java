@@ -161,30 +161,31 @@ public class InteractiveImageView extends ImageView {
             float newX = motionEvent2.getX();
             float oldY = motionEvent.getY();
             float newY = motionEvent2.getY();
-            float absDistanceX = Math.abs(distanceX);
-            float absDistanceY = Math.abs(distanceY);
 
             float currentWidth = currentViewport.width();
             float currentHeight = currentViewport.height();
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("YAY HERE WE ARE %f %f", oldX, newX));
+            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("YAY HERE WE ARE %f %f Current Viewport %s", distanceX,
+                    distanceY, currentViewport.toString()));
 
             if (oldX < newX) {
                 //pan left
-                currentViewport.left = Math.max(currentViewport.left - absDistanceX, contentRect.left);
-                currentViewport.right = currentViewport.right + currentWidth;
+                PLog.l("YIPES", PLog.LogLevel.DEBUG, "Panning left");
+                currentViewport.left = Math.max(currentViewport.left - Math.abs(distanceX), contentRect.left);
+                currentViewport.right = currentViewport.left + currentWidth;
             } else {
                 //pan right
-                currentViewport.right = Math.min(currentViewport.right + absDistanceX, contentRect.right);
+                PLog.l("YIPES", PLog.LogLevel.DEBUG, "Panning right");
+                currentViewport.right = Math.min(currentViewport.right + distanceX, contentRect.right);
                 currentViewport.left = currentViewport.right - currentWidth;
             }
 
             if (oldY < newY) {
                 //pan up
-                currentViewport.top = Math.max(currentViewport.top - absDistanceY, contentRect.top);
+                currentViewport.top = Math.max(currentViewport.top - Math.abs(distanceY), contentRect.top);
                 currentViewport.bottom = currentViewport.top + currentHeight;
             } else {
                 //pan down
-                currentViewport.bottom = Math.min(currentViewport.bottom + absDistanceY, contentRect.bottom);
+                currentViewport.bottom = Math.min(currentViewport.bottom + distanceY, contentRect.bottom);
                 currentViewport.top = currentViewport.bottom - currentHeight;
             }
 
