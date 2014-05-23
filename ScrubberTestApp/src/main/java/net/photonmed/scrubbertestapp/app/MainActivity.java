@@ -18,8 +18,6 @@ public class MainActivity extends ActionBarActivity {
 
     public static final String TAG = MainActivity.class.getPackage() + " " + MainActivity.class.getSimpleName();
 
-
-
     ImageScrubberView scrubberView;
 
     @Override
