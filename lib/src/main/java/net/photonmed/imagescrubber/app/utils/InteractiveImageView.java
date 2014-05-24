@@ -3,8 +3,8 @@ package net.photonmed.imagescrubber.app.utils;
 import android.content.Context;
 import android.graphics.*;
 import android.support.v4.view.ViewCompat;
+import android.support.v4.widget.EdgeEffectCompat;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
@@ -13,10 +13,10 @@ import android.widget.OverScroller;
 
 /**
  * TODO:
- * Panning
+ * Panning still isn't quite right when zoomed in.  I think it has something to do with how we're
+ * constraining the bounds on onScroll, seems to happen regardless
  * Save Image location on screen rotation (need to stash the saved index somewhere.)
  * For some reason fullscreen mode doesn't dismiss the
- * EdgeCompat Animations
  * Double tap zoomer
  */
 public class InteractiveImageView extends ImageView {
@@ -26,8 +26,21 @@ public class InteractiveImageView extends ImageView {
     private float scaleFactor = 1.f;
     private Rect contentRect = new Rect();
     private PointF viewportFocus = new PointF();
-    private RectF currentViewport;
     private OverScroller scroller;
+
+    private boolean edgeEffectLeftActive;
+    private boolean edgeEffectRightActive;
+    private boolean edgeEffectTopActive;
+    private boolean edgeEffectBottomActive;
+
+    private int positionX = 0;
+    private int positionY = 0;
+
+    // Edge effect / overscroll tracking objects.
+    private EdgeEffectCompat edgeEffectTop;
+    private EdgeEffectCompat edgeEffectBottom;
+    private EdgeEffectCompat edgeEffectLeft;
+    private EdgeEffectCompat edgeEffectRight;
 
     public InteractiveImageView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -37,15 +50,84 @@ public class InteractiveImageView extends ImageView {
 
         scroller = new OverScroller(context);
 
+        edgeEffectBottomActive = false;
+        edgeEffectLeftActive = false;
+        edgeEffectRightActive = false;
+        edgeEffectTopActive = false;
+
+        edgeEffectBottom = new EdgeEffectCompat(context);
+        edgeEffectLeft = new EdgeEffectCompat(context);
+        edgeEffectRight = new EdgeEffectCompat(context);
+        edgeEffectTop = new EdgeEffectCompat(context);
     }
 
+    public void releaseEdgeEffects() {
+        edgeEffectBottomActive = false;
+        edgeEffectLeftActive = false;
+        edgeEffectRightActive = false;
+        edgeEffectTopActive = false;
+        edgeEffectLeft.onRelease();
+        edgeEffectRight.onRelease();
+        edgeEffectTop.onRelease();
+        edgeEffectBottom.onRelease();
+    }
+
+    private void drawEdgeEffects(Canvas canvas) {
+        boolean invalidate = false;
+
+        if (!edgeEffectLeft.isFinished()) {
+            final int restoreCount = canvas.save();
+            canvas.translate(contentRect.left, contentRect.bottom);
+            canvas.rotate(-90, 0, 0);
+            edgeEffectLeft.setSize(contentRect.height(), contentRect.width());
+            if (edgeEffectLeft.draw(canvas)) {
+                invalidate = true;
+            }
+            canvas.restoreToCount(restoreCount);
+        }
+
+        if (!edgeEffectRight.isFinished()) {
+            final int restoreCount = canvas.save();
+            canvas.translate(contentRect.right, contentRect.top);
+            canvas.rotate(90, 0, 0);
+            edgeEffectRight.setSize(contentRect.width(), contentRect.height());
+            if (edgeEffectRight.draw(canvas)) {
+                invalidate = true;
+            }
+            canvas.restoreToCount(restoreCount);
+        }
+
+        if (!edgeEffectTop.isFinished()) {
+            final int restoreCount = canvas.save();
+            canvas.translate(contentRect.left, contentRect.top);
+            edgeEffectTop.setSize(contentRect.width(), contentRect.height());
+            if (edgeEffectTop.draw(canvas)) {
+                invalidate = true;
+            }
+            canvas.restoreToCount(restoreCount);
+        }
+
+        if (!edgeEffectBottom.isFinished()) {
+            final int restoreCount = canvas.save();
+            canvas.translate(2 * contentRect.left - contentRect.right, contentRect.bottom);
+            canvas.rotate(180, contentRect.width(), 0);
+            edgeEffectBottom.setSize(contentRect.width(), contentRect.height());
+            if (edgeEffectBottom.draw(canvas)) {
+                invalidate = true;
+            }
+            canvas.restoreToCount(restoreCount);
+        }
+
+        if (invalidate) {
+            ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
+        }
+    }
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w,h,oldw,oldh);
         //Get the values for our image size for transformation
         contentRect.set(getLeft(), getTop(), getRight(), getBottom());
-        currentViewport = new RectF(getLeft(), getTop(), getRight(), getBottom());
     }
 
     @Override
@@ -57,9 +139,13 @@ public class InteractiveImageView extends ImageView {
 
     @Override
     public void onDraw(Canvas canvas) {
-        int restore = canvas.save();
+
         canvas.scale(scaleFactor, scaleFactor, viewportFocus.x, viewportFocus.y);
+
         super.onDraw(canvas);
+
+        drawEdgeEffects(canvas);
+
     }
 
     @Override
@@ -73,67 +159,58 @@ public class InteractiveImageView extends ImageView {
         PLog.l("YIPES", PLog.LogLevel.DEBUG, "COMPUTE SCROLL MUTHA FUCKA!");
         if (scroller.computeScrollOffset()) {
 
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("YAY WE SHOULD FUCKING MOVE NOW!! %s", currentViewport));
             //setSurfaceSizeBuffer(surfaceSizeBuffer);
 
-            int currX = scroller.getCurrX();
-            int currY = scroller.getCurrY();
+            positionX  = scroller.getCurrX();
+            positionY = scroller.getCurrY();
 
-            boolean canScrollX = (currentViewport.left > contentRect.left
-                    || currentViewport.right < contentRect.right);
-            boolean canScrollY = (currentViewport.top > contentRect.top
-                    || currentViewport.bottom < contentRect.bottom);
+            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("Posish %d %d", positionX, positionY));
+            scrollTo(positionX, positionY);
 
-            if (canScrollX
-                    && currX < 0) {
-                    //&& mEdgeEffectLeft.isFinished()
-                   // && !mEdgeEffectLeftActive) {
-                //mEdgeEffectLeft.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
-                //mEdgeEffectLeftActive = true;
+            if (positionX <= 0
+                   && edgeEffectLeft.isFinished()
+                    && !edgeEffectLeftActive) {
+
+                edgeEffectLeft.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
+                edgeEffectLeftActive = true;
                 invalidateCanvas = true;
-            } else if (canScrollX)
-                    //&& mEdgeEffectRight.isFinished()
-                    //&& !mEdgeEffectRightActive
-                      {
-                //mEdgeEffectRight.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
-                //mEdgeEffectRightActive = true;
+            } else if (positionX >= contentRect.right
+                    && edgeEffectRight.isFinished()
+                    && !edgeEffectRightActive) {
+                edgeEffectRight.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
+                edgeEffectRightActive = true;
                 invalidateCanvas = true;
             }
 
-            if (canScrollY
-                    && currY < 0
-                 //   && mEdgeEffectTop.isFinished()
-                 //   && !mEdgeEffectTopActive
+            if (positionY < 0
+                    && edgeEffectTop.isFinished()
+                    && !edgeEffectTopActive
                  ) {
-                //mEdgeEffectTop.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
-                //mEdgeEffectTopActive = true;
+                edgeEffectTop.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
+                edgeEffectTopActive = true;
                 invalidateCanvas = true;
-            } else if (canScrollY)
-                    //&& mEdgeEffectBottom.isFinished()
-                    //&& !mEdgeEffectBottomActive
+            } else if (positionY >= contentRect.bottom
+                    && edgeEffectBottom.isFinished()
+                    && !edgeEffectBottomActive)
                      {
-                //mEdgeEffectBottom.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
-                //mEdgeEffectBottomActive = true;
+                edgeEffectBottom.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
+                edgeEffectBottomActive = true;
                 invalidateCanvas = true;
             }
-
-
-            //float currXRange = surfaceSizeBuffer.x > 0 ? currX / surfaceSizeBuffer.x : currX;
-            //float currYRange = surfaceSizeBuffer.y > 0 ? currY / surfaceSizeBuffer.y : currY;
-            //setViewportBottomLeft(currXRange, currYRange);
 
             if (invalidateCanvas) {
-                scrollTo(currX, currY);
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
+
             }
         }
     }
 
     GestureDetector.OnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
 
+
         @Override
         public boolean onDown(MotionEvent motionEvent) {
-            //releaseEdgeEffects
+            releaseEdgeEffects();
             scroller.forceFinished(true);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             return true;
@@ -147,50 +224,37 @@ public class InteractiveImageView extends ImageView {
         }
 
         @Override
-        public void onShowPress(MotionEvent motionEvent) {
-
-        }
-
-        @Override
         public boolean onSingleTapUp(MotionEvent motionEvent) {
             return false;
         }
 
         @Override
         public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent2, float distanceX, float distanceY) {
-            float oldX = motionEvent.getX();
-            float newX = motionEvent2.getX();
-            float oldY = motionEvent.getY();
-            float newY = motionEvent2.getY();
 
-            float currentWidth = currentViewport.width();
-            float currentHeight = currentViewport.height();
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("YAY HERE WE ARE %f %f Current Viewport %s", distanceX,
-                    distanceY, currentViewport.toString()));
-
-            if (oldX < newX) {
-                //pan left
-                PLog.l("YIPES", PLog.LogLevel.DEBUG, "Panning left");
-                currentViewport.left = Math.max(currentViewport.left - Math.abs(distanceX), contentRect.left);
-                currentViewport.right = currentViewport.left + currentWidth;
-            } else {
-                //pan right
-                PLog.l("YIPES", PLog.LogLevel.DEBUG, "Panning right");
-                currentViewport.right = Math.min(currentViewport.right + distanceX, contentRect.right);
-                currentViewport.left = currentViewport.right - currentWidth;
+            int dx = (int)distanceX;
+            int dy = (int)distanceY;
+            int newPositionX = positionX + dx;
+            int newPositionY = positionY + dy;
+            if (newPositionX < contentRect.left) {
+                dx -= newPositionX;
+                edgeEffectLeft.onPull(distanceX/contentRect.width());
+            } else if (newPositionX > contentRect.right) {
+                dx -= newPositionX - contentRect.right;
+                edgeEffectRight.onPull(distanceX/contentRect.height());
+            }
+            if (newPositionY < contentRect.top) {
+                dy -= newPositionY;
+                edgeEffectTop.onPull(distanceY/contentRect.height());
+            } else if (newPositionY > contentRect.bottom) {
+                dy -= newPositionY - contentRect.bottom;
+                edgeEffectBottom.onPull(distanceY/contentRect.height());
             }
 
-            if (oldY < newY) {
-                //pan up
-                currentViewport.top = Math.max(currentViewport.top - Math.abs(distanceY), contentRect.top);
-                currentViewport.bottom = currentViewport.top + currentHeight;
-            } else {
-                //pan down
-                currentViewport.bottom = Math.min(currentViewport.bottom + distanceY, contentRect.bottom);
-                currentViewport.top = currentViewport.bottom - currentHeight;
-            }
-
-            //ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
+            scroller.startScroll(positionX, positionY, dx, dy, 0);
+            ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
+            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("This is the position dawg %d %d with new posish %d %d " +
+                            "and dx dy %d %d the float falues were %f %f",
+                    newPositionX, newPositionY, positionX, positionY, dx, dy, distanceX, distanceY));
             return true;
         }
 
@@ -201,49 +265,34 @@ public class InteractiveImageView extends ImageView {
 
         @Override
         public boolean onFling(MotionEvent motionEvent, MotionEvent motionEvent2, float velocityX, float velocityY) {
-            //setSurfaceSizeBuffer(surfaceSizeBuffer);
-            return false;
-            /*
-            int startX = (int) (surfaceSizeBuffer.x * currentViewport.left);
-            int startY = (int) (surfaceSizeBuffer.y * currentViewport.bottom);
+            PLog.l("YIPES", PLog.LogLevel.DEBUG, "We are FLINGING!!!");
             scroller.forceFinished(true);
             scroller.fling(
-                    startX,
-                    startY,
-                    (int)velocityX,
-                    (int)velocityY,
-                    0, surfaceSizeBuffer.x - contentRect.width(),
-                    0, surfaceSizeBuffer.y - contentRect.height(),
-                    contentRect.width() / 2,
-                    contentRect.height() / 2);
+                    positionX,
+                    positionY,
+                    (int)-velocityX,
+                    (int)-velocityY,
+                    contentRect.left, contentRect.right,
+                    contentRect.top, contentRect.bottom,
+                    0,
+                    0);
 
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             return true;
-            */
         }
     };
 
     private final ScaleGestureDetector.OnScaleGestureListener scaleListener
             = new ScaleGestureDetector.SimpleOnScaleGestureListener() {
 
-        private float lastSpanX;
-        private float lastSpanY;
 
         @Override
         public boolean onScaleBegin(ScaleGestureDetector scaleGestureDetector) {
-            lastSpanX = ScaleGestureDetectorCompat.getCurrentSpanX(scaleGestureDetector);
-            lastSpanY = ScaleGestureDetectorCompat.getCurrentSpanY(scaleGestureDetector);
             return true;
         }
 
         @Override
         public boolean onScale(ScaleGestureDetector scaleGestureDetector) {
-            float spanX = ScaleGestureDetectorCompat.getCurrentSpanX(scaleGestureDetector);
-            float spanY = ScaleGestureDetectorCompat.getCurrentSpanY(scaleGestureDetector);
-
-            //The ratio of the start to the current spans scaled by the current viewport dimensions
-            float newWidth = (lastSpanX/spanX) * currentViewport.width();
-            float newHeight = (lastSpanY/spanY) * currentViewport.height();
 
             float focusX = scaleGestureDetector.getFocusX();
             float focusY = scaleGestureDetector.getFocusY();
@@ -253,19 +302,11 @@ public class InteractiveImageView extends ImageView {
                         contentRect.top + contentRect.height() * (focusY - contentRect.top)/contentRect.height());
             }
 
-            currentViewport.set(viewportFocus.x - newWidth * (focusX - contentRect.left)/contentRect.width(),
-                    viewportFocus.y - newHeight * (focusY - contentRect.top)/contentRect.height(),
-                    0,
-                    0);
-            currentViewport.right = currentViewport.left + newWidth;
-            currentViewport.bottom = currentViewport.top + newHeight;
             scaleFactor *= scaleGestureDetector.getScaleFactor();
 
             scaleFactor = Math.max(1.0f, Math.min(scaleFactor, 3.0f));
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
 
-            lastSpanX = spanX;
-            lastSpanY = spanY;
             return true;
         }
     };
