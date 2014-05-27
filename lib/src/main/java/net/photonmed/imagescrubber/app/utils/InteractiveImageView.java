@@ -128,6 +128,7 @@ public class InteractiveImageView extends ImageView {
         super.onSizeChanged(w,h,oldw,oldh);
         //Get the values for our image size for transformation
         contentRect.set(getLeft(), getTop(), getRight(), getBottom());
+        PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("Content rect %s", contentRect.toString()));
     }
 
     @Override
@@ -156,7 +157,6 @@ public class InteractiveImageView extends ImageView {
         // The scroller isn't finished, meaning a fling or programmatic pan operation is
         // currently active.
 
-        PLog.l("YIPES", PLog.LogLevel.DEBUG, "COMPUTE SCROLL MUTHA FUCKA!");
         if (scroller.computeScrollOffset()) {
 
             //setSurfaceSizeBuffer(surfaceSizeBuffer);
@@ -177,6 +177,9 @@ public class InteractiveImageView extends ImageView {
             } else if (positionX >= contentRect.right
                     && edgeEffectRight.isFinished()
                     && !edgeEffectRightActive) {
+
+                PLog.l("YIPES", PLog.LogLevel.DEBUG, "Position X > the right wall.");
+
                 edgeEffectRight.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
                 edgeEffectRightActive = true;
                 invalidateCanvas = true;
@@ -200,7 +203,6 @@ public class InteractiveImageView extends ImageView {
 
             if (invalidateCanvas) {
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
-
             }
         }
     }
@@ -235,26 +237,31 @@ public class InteractiveImageView extends ImageView {
             int dy = (int)distanceY;
             int newPositionX = positionX + dx;
             int newPositionY = positionY + dy;
+            float initialTouchX = motionEvent.getX();
+            float initialTouchY = motionEvent.getY();
+
+            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("initialX %f initialY %f", initialTouchX, initialTouchY));
             if (newPositionX < contentRect.left) {
-                dx -= newPositionX;
+                dx = 0;
                 edgeEffectLeft.onPull(distanceX/contentRect.width());
-            } else if (newPositionX > contentRect.right) {
-                dx -= newPositionX - contentRect.right;
-                edgeEffectRight.onPull(distanceX/contentRect.height());
+            } else if ((initialTouchX + dx) > contentRect.width()) {
+                dx = 0;
+                edgeEffectRight.onPull(distanceX/contentRect.width());
             }
             if (newPositionY < contentRect.top) {
                 dy -= newPositionY;
                 edgeEffectTop.onPull(distanceY/contentRect.height());
-            } else if (newPositionY > contentRect.bottom) {
+            } else if (initialTouchY + dy > contentRect.bottom) {
                 dy -= newPositionY - contentRect.bottom;
                 edgeEffectBottom.onPull(distanceY/contentRect.height());
             }
 
             scroller.startScroll(positionX, positionY, dx, dy, 0);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("This is the position dawg %d %d with new posish %d %d " +
+            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("This is the Posish dawg %d %d with new posish %d %d " +
                             "and dx dy %d %d the float falues were %f %f",
                     newPositionX, newPositionY, positionX, positionY, dx, dy, distanceX, distanceY));
+
             return true;
         }
 
@@ -284,7 +291,6 @@ public class InteractiveImageView extends ImageView {
 
     private final ScaleGestureDetector.OnScaleGestureListener scaleListener
             = new ScaleGestureDetector.SimpleOnScaleGestureListener() {
-
 
         @Override
         public boolean onScaleBegin(ScaleGestureDetector scaleGestureDetector) {

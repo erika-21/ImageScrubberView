@@ -162,8 +162,4 @@ public class ImageScrubberView extends FrameLayout {
 
 };
 
-
-
-
-
 }
