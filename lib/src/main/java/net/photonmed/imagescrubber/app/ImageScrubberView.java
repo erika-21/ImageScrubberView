@@ -65,6 +65,7 @@ public class ImageScrubberView extends FrameLayout {
 
         final View controlsView = findViewById(R.id.fullscreen_content_controls);
 
+        Picasso.with(context).setDebugging(true);
         systemUiHider = systemUiHider.getInstance(this.activity, imageView, HIDER_FLAGS);
         systemUiHider.setup();
         systemUiHider

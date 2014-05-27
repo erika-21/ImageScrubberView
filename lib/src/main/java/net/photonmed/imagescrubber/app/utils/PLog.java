@@ -22,18 +22,26 @@ public class PLog {
 
     public static void l(String TAG, LogLevel level, String message) {
 
-        switch (level) {
-            case VERBOSE:
-                Log.v(TAG, message);
-                break;
-            case DEBUG:
-                Log.d(TAG, message);
-                break;
-            case WARNING:
-                Log.w(TAG, message);
-                break;
-            case ERROR:
-                Log.e(TAG, message);
+        if (Debug) {
+            switch (level) {
+                case VERBOSE:
+                    Log.v(TAG, message);
+                    break;
+                case DEBUG:
+                    Log.d(TAG, message);
+                    break;
+                case WARNING:
+                    Log.w(TAG, message);
+                    break;
+                case ERROR:
+                    Log.e(TAG, message);
+            }
+        }
+    }
+
+    public static void d(String Tag, String message) {
+        if (Debug) {
+            Log.d(Tag, message);
         }
     }
 }

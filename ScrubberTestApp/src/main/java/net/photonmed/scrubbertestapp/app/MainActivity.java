@@ -8,8 +8,6 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import net.photonmed.imagescrubber.app.ImageScrubberView;
-import net.photonmed.imagescrubber.app.utils.SystemUiHider;
-
 import java.io.File;
 import java.util.LinkedHashSet;
 

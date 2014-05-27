@@ -21,11 +21,20 @@ import android.widget.OverScroller;
  */
 public class InteractiveImageView extends ImageView {
 
+    public static final String TAG = InteractiveImageView.class.getPackage() + " " + InteractiveImageView.class.getSimpleName();
+
+    private static final float X_MIN = -1f;
+    private static final float X_MAX = 1f;
+    private static final float Y_MIN = -1f;
+    private static final float Y_MAX = 1f;
+
     private ScaleGestureDetector scaleDetector;
     private GestureDetector gestureDetector;
     private float scaleFactor = 1.f;
     private Rect contentRect = new Rect();
-    private PointF viewportFocus = new PointF();
+    private PointF viewportFocus = new PointF();//abstraction for the currentviewport tracking
+    private PointF canvasFocus = new PointF(); //the actual focus for scaling the canvas
+    private Point surfaceSizeBuffer = new Point();
     private OverScroller scroller;
 
     private boolean edgeEffectLeftActive;
@@ -33,8 +42,10 @@ public class InteractiveImageView extends ImageView {
     private boolean edgeEffectTopActive;
     private boolean edgeEffectBottomActive;
 
-    private int positionX = 0;
-    private int positionY = 0;
+    //Need a viewport to keep frame of reference
+    private RectF currentViewport = new RectF(X_MIN, Y_MIN, X_MAX, Y_MAX);
+    //And for flinging we need a starting frame of reference
+    private RectF scrollerStartViewport = new RectF();
 
     // Edge effect / overscroll tracking objects.
     private EdgeEffectCompat edgeEffectTop;
@@ -61,6 +72,30 @@ public class InteractiveImageView extends ImageView {
         edgeEffectTop = new EdgeEffectCompat(context);
     }
 
+    private void constrainViewport() {
+        currentViewport.left = Math.max(X_MIN, currentViewport.left);
+        currentViewport.top = Math.max(Y_MIN, currentViewport.top);
+        currentViewport.bottom = Math.max(Math.nextUp(currentViewport.top),
+                Math.min(Y_MAX, currentViewport.bottom));
+        currentViewport.right = Math.max(Math.nextUp(currentViewport.left),
+                Math.min(X_MAX, currentViewport.right));
+    }
+
+    private void setViewportFocus(float x, float y) {
+        viewportFocus.set(currentViewport.left + currentViewport.width() * (x - contentRect.left) / contentRect.width(),
+                currentViewport.top + currentViewport.height() * (y - contentRect.top)/ contentRect.height());
+    }
+
+    private void setCanvasFocus(float x, float y) {
+        canvasFocus.set(contentRect.left + contentRect.width() * (x - contentRect.left)/contentRect.width(),
+                contentRect.top + contentRect.height() * (y - contentRect.top)/contentRect.height());
+    }
+
+    private void setCurrentSurfaceSizeBuffer() {
+        surfaceSizeBuffer.set((int) (contentRect.width() * (X_MAX - X_MIN) / currentViewport.width()),
+                (int) (contentRect.height() * (Y_MAX - Y_MIN) / currentViewport.height()));
+    }
+
     public void releaseEdgeEffects() {
         edgeEffectBottomActive = false;
         edgeEffectLeftActive = false;
@@ -70,6 +105,16 @@ public class InteractiveImageView extends ImageView {
         edgeEffectRight.onRelease();
         edgeEffectTop.onRelease();
         edgeEffectBottom.onRelease();
+    }
+
+    private void setViewportTopLeft(float x, float y) {
+        float currentWidth = currentViewport.width();
+        float currentHeight = currentViewport.height();
+
+        x = Math.max(X_MIN, Math.min(x, X_MAX - currentWidth));
+        y = Math.max(Y_MIN, Math.min(y, Y_MAX - currentHeight));
+
+        currentViewport.set(x, y, x + currentWidth, y + currentHeight);
     }
 
     private void drawEdgeEffects(Canvas canvas) {
@@ -90,7 +135,7 @@ public class InteractiveImageView extends ImageView {
             final int restoreCount = canvas.save();
             canvas.translate(contentRect.right, contentRect.top);
             canvas.rotate(90, 0, 0);
-            edgeEffectRight.setSize(contentRect.width(), contentRect.height());
+            edgeEffectRight.setSize(contentRect.height(), contentRect.width());
             if (edgeEffectRight.draw(canvas)) {
                 invalidate = true;
             }
@@ -100,7 +145,7 @@ public class InteractiveImageView extends ImageView {
         if (!edgeEffectTop.isFinished()) {
             final int restoreCount = canvas.save();
             canvas.translate(contentRect.left, contentRect.top);
-            edgeEffectTop.setSize(contentRect.width(), contentRect.height());
+            edgeEffectTop.setSize(contentRect.height(), contentRect.width());
             if (edgeEffectTop.draw(canvas)) {
                 invalidate = true;
             }
@@ -128,7 +173,7 @@ public class InteractiveImageView extends ImageView {
         super.onSizeChanged(w,h,oldw,oldh);
         //Get the values for our image size for transformation
         contentRect.set(getLeft(), getTop(), getRight(), getBottom());
-        PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("Content rect %s", contentRect.toString()));
+        PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Content rect %s", contentRect.toString()));
     }
 
     @Override
@@ -141,7 +186,7 @@ public class InteractiveImageView extends ImageView {
     @Override
     public void onDraw(Canvas canvas) {
 
-        canvas.scale(scaleFactor, scaleFactor, viewportFocus.x, viewportFocus.y);
+        canvas.scale(scaleFactor, scaleFactor, canvasFocus.x, canvasFocus.y);
 
         super.onDraw(canvas);
 
@@ -156,43 +201,41 @@ public class InteractiveImageView extends ImageView {
         boolean invalidateCanvas = false;
         // The scroller isn't finished, meaning a fling or programmatic pan operation is
         // currently active.
-
         if (scroller.computeScrollOffset()) {
 
-            //setSurfaceSizeBuffer(surfaceSizeBuffer);
 
-            positionX  = scroller.getCurrX();
-            positionY = scroller.getCurrY();
+            setCurrentSurfaceSizeBuffer();
 
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("Posish %d %d", positionX, positionY));
-            scrollTo(positionX, positionY);
+            int positionX  = scroller.getCurrX();
+            int positionY = scroller.getCurrY();
 
-            if (positionX <= 0
+            boolean scrollableX = (currentViewport.left > X_MIN || currentViewport.right < X_MAX);
+            boolean scrollableY = (currentViewport.top > Y_MIN || currentViewport.bottom < Y_MAX);
+
+            if (scrollableX && positionX < 0
                    && edgeEffectLeft.isFinished()
                     && !edgeEffectLeftActive) {
 
                 edgeEffectLeft.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
                 edgeEffectLeftActive = true;
                 invalidateCanvas = true;
-            } else if (positionX >= contentRect.right
+            } else if (scrollableX && positionX > (surfaceSizeBuffer.x - contentRect.width())
                     && edgeEffectRight.isFinished()
                     && !edgeEffectRightActive) {
-
-                PLog.l("YIPES", PLog.LogLevel.DEBUG, "Position X > the right wall.");
 
                 edgeEffectRight.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
                 edgeEffectRightActive = true;
                 invalidateCanvas = true;
             }
 
-            if (positionY < 0
+            if (positionY < 0 && scrollableY
                     && edgeEffectTop.isFinished()
                     && !edgeEffectTopActive
                  ) {
                 edgeEffectTop.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
                 edgeEffectTopActive = true;
                 invalidateCanvas = true;
-            } else if (positionY >= contentRect.bottom
+            } else if (positionY > (surfaceSizeBuffer.y - contentRect.height())
                     && edgeEffectBottom.isFinished()
                     && !edgeEffectBottomActive)
                      {
@@ -201,6 +244,11 @@ public class InteractiveImageView extends ImageView {
                 invalidateCanvas = true;
             }
 
+            float currentXRange = X_MIN + (X_MAX - X_MIN) * positionX / surfaceSizeBuffer.x;
+            float currentYRange = Y_MIN + (Y_MAX - Y_MIN) * positionY / surfaceSizeBuffer.y;
+            setViewportTopLeft(currentXRange, currentYRange);
+
+            scrollTo(positionX, positionY);
             if (invalidateCanvas) {
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             }
@@ -213,6 +261,7 @@ public class InteractiveImageView extends ImageView {
         @Override
         public boolean onDown(MotionEvent motionEvent) {
             releaseEdgeEffects();
+            scrollerStartViewport.set(currentViewport);
             scroller.forceFinished(true);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             return true;
@@ -233,34 +282,41 @@ public class InteractiveImageView extends ImageView {
         @Override
         public boolean onScroll(MotionEvent motionEvent, MotionEvent motionEvent2, float distanceX, float distanceY) {
 
-            int dx = (int)distanceX;
-            int dy = (int)distanceY;
-            int newPositionX = positionX + dx;
-            int newPositionY = positionY + dy;
-            float initialTouchX = motionEvent.getX();
-            float initialTouchY = motionEvent.getY();
+            float viewportOffsetX = distanceX * currentViewport.width() / contentRect.width();
+            float viewportOffsetY = distanceY * currentViewport.height() / contentRect.height();
+            setCurrentSurfaceSizeBuffer();
+            int scrolledX = (int) (surfaceSizeBuffer.x * (currentViewport.left + viewportOffsetX - X_MIN)/(X_MAX - X_MIN));
+            int scrolledY = (int) (surfaceSizeBuffer.y * (currentViewport.top + viewportOffsetY - Y_MIN)/(Y_MAX - Y_MIN));
+            boolean scrollableX = currentViewport.left > X_MIN || currentViewport.right < X_MAX;
+            boolean scrollableY = currentViewport.top > Y_MIN || currentViewport.bottom < Y_MAX;
 
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("initialX %f initialY %f", initialTouchX, initialTouchY));
-            if (newPositionX < contentRect.left) {
-                dx = 0;
-                edgeEffectLeft.onPull(distanceX/contentRect.width());
-            } else if ((initialTouchX + dx) > contentRect.width()) {
-                dx = 0;
-                edgeEffectRight.onPull(distanceX/contentRect.width());
+
+            setViewportTopLeft(currentViewport.left + viewportOffsetX, currentViewport.top + viewportOffsetY);
+
+            if (scrollableX && scrolledX < 0) {
+                edgeEffectLeft.onPull(scrolledX/contentRect.width());
+                edgeEffectLeftActive = true;
             }
-            if (newPositionY < contentRect.top) {
-                dy -= newPositionY;
-                edgeEffectTop.onPull(distanceY/contentRect.height());
-            } else if (initialTouchY + dy > contentRect.bottom) {
-                dy -= newPositionY - contentRect.bottom;
-                edgeEffectBottom.onPull(distanceY/contentRect.height());
+            if (scrollableY && scrolledY < 0) {
+                edgeEffectTop.onPull(scrolledY/contentRect.height());
+                edgeEffectTopActive = true;
+            }
+            if (scrollableX && scrolledX > surfaceSizeBuffer.x - contentRect.width()) {
+                edgeEffectRight.onPull((scrolledX - surfaceSizeBuffer.x + contentRect.width()) /
+                        (float)contentRect.width());
+                edgeEffectRightActive = true;
+            }
+            if (scrollableY && scrolledY > surfaceSizeBuffer.y - contentRect.height()) {
+                edgeEffectBottom.onPull((scrolledY - surfaceSizeBuffer.y + contentRect.height()) /
+                        (float)contentRect.height());
+                edgeEffectBottomActive = true;
             }
 
-            scroller.startScroll(positionX, positionY, dx, dy, 0);
+            int startX = (int)(surfaceSizeBuffer.x * (currentViewport.left - X_MIN) / (X_MAX - X_MIN));
+            int startY = (int)(surfaceSizeBuffer.y * (currentViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
+
+            scroller.startScroll(startX, startY, (int)distanceX, (int)distanceY, 0);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, String.format("This is the Posish dawg %d %d with new posish %d %d " +
-                            "and dx dy %d %d the float falues were %f %f",
-                    newPositionX, newPositionY, positionX, positionY, dx, dy, distanceX, distanceY));
 
             return true;
         }
@@ -272,18 +328,22 @@ public class InteractiveImageView extends ImageView {
 
         @Override
         public boolean onFling(MotionEvent motionEvent, MotionEvent motionEvent2, float velocityX, float velocityY) {
-            PLog.l("YIPES", PLog.LogLevel.DEBUG, "We are FLINGING!!!");
+            releaseEdgeEffects();
+            setCurrentSurfaceSizeBuffer();
+            scrollerStartViewport.set(currentViewport);
+            int startX = (int)(surfaceSizeBuffer.x * (scrollerStartViewport.left - X_MIN) / (X_MAX - X_MIN));
+            int startY = (int)(surfaceSizeBuffer.y * (scrollerStartViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Fling coordinates %d %d", startX, startY));
             scroller.forceFinished(true);
             scroller.fling(
-                    positionX,
-                    positionY,
-                    (int)-velocityX,
-                    (int)-velocityY,
-                    contentRect.left, contentRect.right,
-                    contentRect.top, contentRect.bottom,
-                    0,
-                    0);
-
+                    startX,
+                    startY,
+                    (int)-velocityX/2,
+                    (int)-velocityY/2,
+                    0, surfaceSizeBuffer.x - contentRect.width(),
+                    0, surfaceSizeBuffer.y - contentRect.height(),
+                    contentRect.width()/8,
+                    contentRect.height()/8);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             return true;
         }
@@ -292,21 +352,44 @@ public class InteractiveImageView extends ImageView {
     private final ScaleGestureDetector.OnScaleGestureListener scaleListener
             = new ScaleGestureDetector.SimpleOnScaleGestureListener() {
 
+        private float lastSpanX;
+        private float lastSpanY;
+
         @Override
         public boolean onScaleBegin(ScaleGestureDetector scaleGestureDetector) {
+            lastSpanX = ScaleGestureDetectorCompat.getCurrentSpanX(scaleGestureDetector);
+            lastSpanY = ScaleGestureDetectorCompat.getCurrentSpanY(scaleGestureDetector);
             return true;
         }
 
         @Override
         public boolean onScale(ScaleGestureDetector scaleGestureDetector) {
+            float spanX = ScaleGestureDetectorCompat.getCurrentSpanX(scaleGestureDetector);
+            float spanY = ScaleGestureDetectorCompat.getCurrentSpanY(scaleGestureDetector);
+
+            float newWidth = lastSpanX / spanX * currentViewport.width();
+            float newHeight = lastSpanY / spanY * currentViewport.height();
 
             float focusX = scaleGestureDetector.getFocusX();
             float focusY = scaleGestureDetector.getFocusY();
 
+
             if (contentRect.contains((int)focusX, (int)focusY)) {
-                viewportFocus.set(contentRect.left + contentRect.width() * (focusX - contentRect.left)/contentRect.width(),
-                        contentRect.top + contentRect.height() * (focusY - contentRect.top)/contentRect.height());
+                setViewportFocus(focusX, focusY);
+                setCanvasFocus(focusX, focusY);
             }
+
+            currentViewport.set(viewportFocus.x - newWidth * (focusX - contentRect.left) / contentRect.width(),
+                    viewportFocus.y - newHeight * (focusY - contentRect.top) / contentRect.height(),
+                    0, 0);
+            currentViewport.right = currentViewport.left + newWidth;
+            currentViewport.bottom = currentViewport.top + newHeight;
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Current viewport is now %s", currentViewport.toString()));
+            constrainViewport();
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Constrained viewport is now %s", currentViewport.toString()));
+            lastSpanX = spanX;
+            lastSpanY = spanY;
 
             scaleFactor *= scaleGestureDetector.getScaleFactor();
 
