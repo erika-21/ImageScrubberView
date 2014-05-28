@@ -367,11 +367,7 @@ public class InteractiveImageView extends ImageView {
 
             float focusX = scaleGestureDetector.getFocusX();
             float focusY = scaleGestureDetector.getFocusY();
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("newWidth %f", newWidth));
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("focusX %f", focusX));
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("spanX %f", spanX));
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Last spanX %f", lastSpanX));
-
+            
             if (contentRect.contains((int)focusX, (int)focusY)) {
                 setViewportFocus(focusX, focusY);
                 PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
