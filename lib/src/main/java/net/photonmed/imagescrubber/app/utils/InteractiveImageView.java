@@ -13,10 +13,8 @@ import android.widget.OverScroller;
 
 /**
  * TODO:
- * Panning still isn't quite right when zoomed in.  I think it has something to do with how we're
- * constraining the bounds on onScroll, seems to happen regardless
  * Save Image location on screen rotation (need to stash the saved index somewhere.)
- * For some reason fullscreen mode doesn't dismiss the
+ * For some reason fullscreen mode doesn't dismiss the action bar on certain devices
  * Double tap zoomer
  */
 public class InteractiveImageView extends ImageView {
@@ -367,7 +365,7 @@ public class InteractiveImageView extends ImageView {
 
             float focusX = scaleGestureDetector.getFocusX();
             float focusY = scaleGestureDetector.getFocusY();
-            
+
             if (contentRect.contains((int)focusX, (int)focusY)) {
                 setViewportFocus(focusX, focusY);
                 PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
