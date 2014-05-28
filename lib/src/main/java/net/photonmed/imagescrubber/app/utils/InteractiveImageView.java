@@ -115,6 +115,7 @@ public class InteractiveImageView extends ImageView {
         y = Math.max(Y_MIN, Math.min(y, Y_MAX - currentHeight));
 
         currentViewport.set(x, y, x + currentWidth, y + currentHeight);
+
     }
 
     private void drawEdgeEffects(Canvas canvas) {
@@ -285,8 +286,9 @@ public class InteractiveImageView extends ImageView {
             float viewportOffsetX = distanceX * currentViewport.width() / contentRect.width();
             float viewportOffsetY = distanceY * currentViewport.height() / contentRect.height();
             setCurrentSurfaceSizeBuffer();
-            int scrolledX = (int) (surfaceSizeBuffer.x * (currentViewport.left + viewportOffsetX - X_MIN)/(X_MAX - X_MIN));
-            int scrolledY = (int) (surfaceSizeBuffer.y * (currentViewport.top + viewportOffsetY - Y_MIN)/(Y_MAX - Y_MIN));
+            int scrolledX = (int) (surfaceSizeBuffer.x * (currentViewport.left + viewportOffsetX - X_MIN) / (X_MAX - X_MIN));
+            int scrolledY = (int) (surfaceSizeBuffer.y * (currentViewport.top + viewportOffsetY - Y_MIN) / (Y_MAX - Y_MIN));
+
             boolean scrollableX = currentViewport.left > X_MIN || currentViewport.right < X_MAX;
             boolean scrollableY = currentViewport.top > Y_MIN || currentViewport.bottom < Y_MAX;
 
@@ -294,28 +296,28 @@ public class InteractiveImageView extends ImageView {
             setViewportTopLeft(currentViewport.left + viewportOffsetX, currentViewport.top + viewportOffsetY);
 
             if (scrollableX && scrolledX < 0) {
-                edgeEffectLeft.onPull(scrolledX/contentRect.width());
+                edgeEffectLeft.onPull(scrolledX / contentRect.width());
                 edgeEffectLeftActive = true;
             }
             if (scrollableY && scrolledY < 0) {
-                edgeEffectTop.onPull(scrolledY/contentRect.height());
+                edgeEffectTop.onPull(scrolledY / contentRect.height());
                 edgeEffectTopActive = true;
             }
             if (scrollableX && scrolledX > surfaceSizeBuffer.x - contentRect.width()) {
                 edgeEffectRight.onPull((scrolledX - surfaceSizeBuffer.x + contentRect.width()) /
-                        (float)contentRect.width());
+                        (float) contentRect.width());
                 edgeEffectRightActive = true;
             }
             if (scrollableY && scrolledY > surfaceSizeBuffer.y - contentRect.height()) {
                 edgeEffectBottom.onPull((scrolledY - surfaceSizeBuffer.y + contentRect.height()) /
-                        (float)contentRect.height());
+                        (float) contentRect.height());
                 edgeEffectBottomActive = true;
             }
 
-            int startX = (int)(surfaceSizeBuffer.x * (currentViewport.left - X_MIN) / (X_MAX - X_MIN));
-            int startY = (int)(surfaceSizeBuffer.y * (currentViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
+            int startX = (int) (surfaceSizeBuffer.x * (currentViewport.left - X_MIN) / (X_MAX - X_MIN));
+            int startY = (int) (surfaceSizeBuffer.y * (currentViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
 
-            scroller.startScroll(startX, startY, (int)distanceX, (int)distanceY, 0);
+            scroller.startScroll(startX, startY, (int) distanceX, (int) distanceY, 0);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
 
             return true;
@@ -334,7 +336,6 @@ public class InteractiveImageView extends ImageView {
             int startX = (int)(surfaceSizeBuffer.x * (scrollerStartViewport.left - X_MIN) / (X_MAX - X_MIN));
             int startY = (int)(surfaceSizeBuffer.y * (scrollerStartViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
             PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Fling coordinates %d %d", startX, startY));
-            scroller.forceFinished(true);
             scroller.fling(
                     startX,
                     startY,
@@ -368,14 +369,18 @@ public class InteractiveImageView extends ImageView {
             float spanY = ScaleGestureDetectorCompat.getCurrentSpanY(scaleGestureDetector);
 
             float newWidth = lastSpanX / spanX * currentViewport.width();
-            float newHeight = lastSpanY / spanY * currentViewport.height();
+            float newHeight = lastSpanY /spanY * currentViewport.height();
 
             float focusX = scaleGestureDetector.getFocusX();
             float focusY = scaleGestureDetector.getFocusY();
-
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("newWidth %f", newWidth));
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("focusX %f", focusX));
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("spanX %f", spanX));
+            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Last spanX %f", lastSpanX));
 
             if (contentRect.contains((int)focusX, (int)focusY)) {
                 setViewportFocus(focusX, focusY);
+                PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
                 setCanvasFocus(focusX, focusY);
             }
 
@@ -384,16 +389,16 @@ public class InteractiveImageView extends ImageView {
                     0, 0);
             currentViewport.right = currentViewport.left + newWidth;
             currentViewport.bottom = currentViewport.top + newHeight;
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
             PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Current viewport is now %s", currentViewport.toString()));
             constrainViewport();
             PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Constrained viewport is now %s", currentViewport.toString()));
             lastSpanX = spanX;
+
             lastSpanY = spanY;
 
             scaleFactor *= scaleGestureDetector.getScaleFactor();
 
-            scaleFactor = Math.max(1.0f, Math.min(scaleFactor, 3.0f));
+            scaleFactor = Math.max(.99f, Math.min(scaleFactor, 5.0f));
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
 
             return true;
