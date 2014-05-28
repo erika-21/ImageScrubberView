@@ -34,7 +34,7 @@ public class MainActivity extends ActionBarActivity {
             }
         }
 
-        scrubberView.setImageUris(files, 0);
+        scrubberView.setImageUris(files);
     }
 
 

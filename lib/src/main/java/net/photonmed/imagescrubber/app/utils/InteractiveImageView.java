@@ -309,11 +309,10 @@ public class InteractiveImageView extends ImageView {
             int startX = (int) (surfaceSizeBuffer.x * (currentViewport.left - X_MIN) / (X_MAX - X_MIN));
             int startY = (int) (surfaceSizeBuffer.y * (currentViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
 
-            scroller.startScroll(startX, startY, (int) distanceX, (int) distanceY, 0);
+            scroller.startScroll(startX, startY, (int) distanceX, (int) distanceY, 100);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
-
             return true;
-        }
+    }
 
         @Override
         public void onLongPress(MotionEvent motionEvent) {
@@ -335,8 +334,8 @@ public class InteractiveImageView extends ImageView {
                     (int)-velocityY/2,
                     0, surfaceSizeBuffer.x - contentRect.width(),
                     0, surfaceSizeBuffer.y - contentRect.height(),
-                    contentRect.width()/8,
-                    contentRect.height()/8);
+                    contentRect.width()/10,
+                    contentRect.height()/10);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             return true;
         }

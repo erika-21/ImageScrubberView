@@ -5,10 +5,13 @@ import android.app.Activity;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Parcel;
+import android.os.Parcelable;
+import android.support.v4.os.ParcelableCompat;
+import android.support.v4.os.ParcelableCompatCreatorCallbacks;
 import android.util.AttributeSet;
 import android.view.*;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.SeekBar;
 import com.squareup.picasso.Picasso;
 import net.photonmed.imagescrubber.app.utils.InteractiveImageView;
@@ -32,7 +35,7 @@ public class ImageScrubberView extends FrameLayout {
     private Context context;
     private int totalSize;
     private SystemUiHider systemUiHider;
-    private int currentIndex;
+    private int currentIndex = 0;
 
     private static final int HIDER_FLAGS = SystemUiHider.FLAG_HIDE_NAVIGATION;
 
@@ -43,6 +46,7 @@ public class ImageScrubberView extends FrameLayout {
         this.totalSize = this.imageUris.size();
         this.seekBar.setMax(totalSize - 1);
         if (index < totalSize) {
+            currentIndex = index;
             Picasso.with(this.context).load(this.imageUris.get(index)).into(imageView);
         } else if (totalSize > 0) {
             Picasso.with(this.context).load(this.imageUris.get(0)).into(imageView);
@@ -51,17 +55,21 @@ public class ImageScrubberView extends FrameLayout {
         }
     }
 
+    public void setImageUris(Collection<String> imageUris) {
+        setImageUris(imageUris, currentIndex);
+    }
+
     public ImageScrubberView(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
 
         this.context = context;
-        this.activity = (Activity)context;
+        this.activity = (Activity) context;
 
-        LayoutInflater inflater = (LayoutInflater)context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        LayoutInflater inflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         inflater.inflate(R.layout.main_scrubber, this, true);
 
-        imageView = (InteractiveImageView)findViewById(R.id.imageView);
-        seekBar = (SeekBar)findViewById(R.id.seekBar);
+        imageView = (InteractiveImageView) findViewById(R.id.imageView);
+        seekBar = (SeekBar) findViewById(R.id.seekBar);
 
         final View controlsView = findViewById(R.id.fullscreen_content_controls);
 
@@ -70,7 +78,7 @@ public class ImageScrubberView extends FrameLayout {
         systemUiHider
                 .setOnVisibilityChangeListener(new SystemUiHider.OnVisibilityChangeListener() {
 
-                                                   // Cached values.
+                    // Cached values.
                     int mControlsHeight;
                     int mShortAnimTime;
 
@@ -160,6 +168,74 @@ public class ImageScrubberView extends FrameLayout {
             //UNUSED
         }
 
-};
+    };
+
+    @Override
+    public Parcelable onSaveInstanceState() {
+        Parcelable superState = super.onSaveInstanceState();
+        SavedState savedState = new SavedState(superState);
+        savedState.currentIndex = currentIndex;
+        savedState.imageStrings = imageUris;
+        return savedState;
+    }
+
+    @Override
+    public void onRestoreInstanceState(Parcelable state) {
+        if (!(state instanceof SavedState)) {
+            super.onRestoreInstanceState(state);
+            return;
+        }
+
+        SavedState savedState = (SavedState)state;
+        super.onRestoreInstanceState(savedState.getSuperState());
+        currentIndex = savedState.currentIndex;
+        ArrayList<String> rawStrings = savedState.imageStrings;
+        imageUris = new ArrayList<String>(rawStrings);
+        Picasso.with(this.context).load(this.imageUris.get(currentIndex)).into(imageView);
+    }
+
+    public static class SavedState extends BaseSavedState {
+
+        private Integer currentIndex;
+        private ArrayList<String> imageStrings;
+
+        public SavedState(Parcelable superState) {
+            super(superState);
+            imageStrings = new ArrayList<String>();
+        }
+
+        SavedState(Parcel in) {
+            super(in);
+            currentIndex = in.readInt();
+            in.readStringList(imageStrings);
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            super.writeToParcel(dest, flags);
+            dest.writeInt(currentIndex);
+            dest.writeStringList(imageStrings);
+        }
+
+        public static final Parcelable.Creator<SavedState> CREATOR
+            = ParcelableCompat.newCreator(new ParcelableCompatCreatorCallbacks<SavedState>() {
+
+            @Override
+            public SavedState createFromParcel(Parcel in, ClassLoader loader) {
+                return new SavedState(in);
+            }
+
+            @Override
+            public SavedState[] newArray(int size) {
+                return new SavedState[size];
+            }
+
+        });
+
+
+
+    }
+
+
 
 }
