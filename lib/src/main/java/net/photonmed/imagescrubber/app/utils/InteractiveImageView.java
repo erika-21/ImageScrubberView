@@ -33,7 +33,6 @@ public class InteractiveImageView extends ImageView {
     private float scaleFactor = 1.f;
     private Rect contentRect = new Rect();
     private PointF viewportFocus = new PointF();//abstraction for the currentviewport tracking
-    private PointF canvasFocus = new PointF(); //the actual focus for scaling the canvas
     private Point surfaceSizeBuffer = new Point();
     private OverScroller scroller;
 
@@ -84,11 +83,6 @@ public class InteractiveImageView extends ImageView {
     private void setViewportFocus(float x, float y) {
         viewportFocus.set(currentViewport.left + currentViewport.width() * (x - contentRect.left) / contentRect.width(),
                 currentViewport.top + currentViewport.height() * (y - contentRect.top)/ contentRect.height());
-    }
-
-    private void setCanvasFocus(float x, float y) {
-        canvasFocus.set(contentRect.left + contentRect.width() * (x - contentRect.left)/contentRect.width(),
-                contentRect.top + contentRect.height() * (y - contentRect.top)/contentRect.height());
     }
 
     private void setCurrentSurfaceSizeBuffer() {
@@ -187,7 +181,7 @@ public class InteractiveImageView extends ImageView {
     @Override
     public void onDraw(Canvas canvas) {
 
-        canvas.scale(scaleFactor, scaleFactor, canvasFocus.x, canvasFocus.y);
+        canvas.scale(scaleFactor, scaleFactor);
 
         super.onDraw(canvas);
 
@@ -381,7 +375,6 @@ public class InteractiveImageView extends ImageView {
             if (contentRect.contains((int)focusX, (int)focusY)) {
                 setViewportFocus(focusX, focusY);
                 PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
-                setCanvasFocus(focusX, focusY);
             }
 
             currentViewport.set(viewportFocus.x - newWidth * (focusX - contentRect.left) / contentRect.width(),
