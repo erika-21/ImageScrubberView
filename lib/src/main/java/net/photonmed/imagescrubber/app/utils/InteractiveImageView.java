@@ -166,7 +166,6 @@ public class InteractiveImageView extends ImageView {
         super.onSizeChanged(w,h,oldw,oldh);
         //Get the values for our image size for transformation
         contentRect.set(getLeft(), getTop(), getRight(), getBottom());
-        PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Content rect %s", contentRect.toString()));
     }
 
     @Override
