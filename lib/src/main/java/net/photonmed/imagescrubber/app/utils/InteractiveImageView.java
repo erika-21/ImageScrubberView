@@ -16,23 +16,35 @@ import android.widget.OverScroller;
  * Save Image location on screen rotation (need to stash the saved index somewhere.)
  * For some reason fullscreen mode doesn't dismiss the action bar on certain devices
  * Double tap zoomer
+ *TODO:  Need to add a focal point adjustment for when the viewport gets constrained.  I think this can be done,
+ *TODO   Via referencing the revised constraints on the viewport.  combine that with the previous values in
+ *TODO   some way and that should get it working properly this should be done in constrain viewport since
+ *TODO   ZOOM needs these values as well.
  */
 public class InteractiveImageView extends ImageView {
 
     public static final String TAG = InteractiveImageView.class.getPackage() + " " + InteractiveImageView.class.getSimpleName();
 
+    private static final float ZOOM_INCREMENT = 1.25f;
     private static final float X_MIN = -1f;
     private static final float X_MAX = 1f;
     private static final float Y_MIN = -1f;
     private static final float Y_MAX = 1f;
 
+    private float maxScale = .99f;
+    private float minScale = 5.0f;
+
     private ScaleGestureDetector scaleDetector;
     private GestureDetector gestureDetector;
     private float scaleFactor = 1.f;
+    private float lastScaleFactor;//for double tap to zoom
     private Rect contentRect = new Rect();
     private PointF viewportFocus = new PointF();//abstraction for the currentviewport tracking
+    private PointF zoomViewportFocus = new PointF();
+    private PointF zoomFocus = new PointF();
     private Point surfaceSizeBuffer = new Point();
     private OverScroller scroller;
+    private Zoomer zoomer;//heavily influenced by AOSP samples
 
     private boolean edgeEffectLeftActive;
     private boolean edgeEffectRightActive;
@@ -57,6 +69,9 @@ public class InteractiveImageView extends ImageView {
         gestureDetector = new GestureDetector(context, gestureListener);
 
         scroller = new OverScroller(context);
+        zoomer = new Zoomer(context, scaleFactor);
+
+        lastScaleFactor = scaleFactor;
 
         edgeEffectBottomActive = false;
         edgeEffectLeftActive = false;
@@ -178,7 +193,7 @@ public class InteractiveImageView extends ImageView {
     @Override
     public void onDraw(Canvas canvas) {
 
-        canvas.scale(scaleFactor, scaleFactor);
+        canvas.scale(scaleFactor, scaleFactor, zoomFocus.x, zoomFocus.y);
 
         super.onDraw(canvas);
 
@@ -191,21 +206,19 @@ public class InteractiveImageView extends ImageView {
         super.computeScroll();
 
         boolean invalidateCanvas = false;
-        // The scroller isn't finished, meaning a fling or programmatic pan operation is
-        // currently active.
         if (scroller.computeScrollOffset()) {
 
-
+            PLog.d(TAG, String.format("Current viewport now at SCROLLING %s", currentViewport.toString()));
             setCurrentSurfaceSizeBuffer();
 
-            int positionX  = scroller.getCurrX();
+            int positionX = scroller.getCurrX();
             int positionY = scroller.getCurrY();
 
             boolean scrollableX = (currentViewport.left > X_MIN || currentViewport.right < X_MAX);
             boolean scrollableY = (currentViewport.top > Y_MIN || currentViewport.bottom < Y_MAX);
 
             if (scrollableX && positionX < 0
-                   && edgeEffectLeft.isFinished()
+                    && edgeEffectLeft.isFinished()
                     && !edgeEffectLeftActive) {
 
                 edgeEffectLeft.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
@@ -223,14 +236,13 @@ public class InteractiveImageView extends ImageView {
             if (positionY < 0 && scrollableY
                     && edgeEffectTop.isFinished()
                     && !edgeEffectTopActive
-                 ) {
+                    ) {
                 edgeEffectTop.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
                 edgeEffectTopActive = true;
                 invalidateCanvas = true;
             } else if (positionY > (surfaceSizeBuffer.y - contentRect.height())
                     && edgeEffectBottom.isFinished()
-                    && !edgeEffectBottomActive)
-                     {
+                    && !edgeEffectBottomActive) {
                 edgeEffectBottom.onAbsorb((int) OverScrollerCompat.getCurrVelocity(scroller));
                 edgeEffectBottomActive = true;
                 invalidateCanvas = true;
@@ -241,14 +253,33 @@ public class InteractiveImageView extends ImageView {
             setViewportTopLeft(currentXRange, currentYRange);
 
             scrollTo(positionX, positionY);
-            if (invalidateCanvas) {
-                ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
-            }
+
+        }
+
+        if (zoomer.computeZoom()) {
+            float newWidth = (1f - (zoomer.getCurrZoom() - lastScaleFactor)) * scrollerStartViewport.width();
+            float newHeight = (1f - (zoomer.getCurrZoom() - lastScaleFactor)) * scrollerStartViewport.height();
+
+            float viewportX = (zoomViewportFocus.x - scrollerStartViewport.left) / scrollerStartViewport.width();
+            float viewportY = (zoomViewportFocus.y - scrollerStartViewport.top) / scrollerStartViewport.height();
+            currentViewport.set(zoomViewportFocus.x - newWidth * viewportX,
+                    zoomViewportFocus.y - newHeight * viewportY,
+                    zoomViewportFocus.x + newWidth * (1 - viewportX),
+                    zoomViewportFocus.y + newHeight * (1 - viewportY));
+
+            PLog.d(TAG, String.format("Current viewport now at ZOOMING %s", currentViewport.toString()));
+            constrainViewport();
+            //PLog.d(TAG, String.format("Constrained viewport now at ZOOMING %s", currentViewport.toString()));
+            scaleFactor = zoomer.getCurrZoom();
+            invalidateCanvas = true;
+        }
+
+        if (invalidateCanvas) {
+            ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
         }
     }
 
     GestureDetector.OnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
-
 
         @Override
         public boolean onDown(MotionEvent motionEvent) {
@@ -261,8 +292,20 @@ public class InteractiveImageView extends ImageView {
 
         @Override
         public boolean onDoubleTap(MotionEvent ev) {
-
-            //todo:  Initiate zoom
+            zoomer.forceFinished(true);
+            float useX = ev.getRawX();
+            float useY = ev.getRawY();
+            if (contentRect.contains((int)useX, (int)useY)) {
+                zoomViewportFocus.set(currentViewport.left + currentViewport.width() * (useX - contentRect.left) / contentRect.width(),
+                        currentViewport.top + currentViewport.height() * (useY - contentRect.top) / contentRect.height());
+                zoomFocus.set(useX, useY);
+                PLog.d(TAG, String.format("Double tap pressed zoom focus %s", zoomViewportFocus));
+                float finalScaleFactor = scaleFactor * ZOOM_INCREMENT;
+                finalScaleFactor = Math.min(finalScaleFactor, minScale);
+                lastScaleFactor = scaleFactor;
+                zoomer.startZoom(finalScaleFactor);
+                ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
+            }
             return true;
         }
 
@@ -277,12 +320,14 @@ public class InteractiveImageView extends ImageView {
             float viewportOffsetX = distanceX * currentViewport.width() / contentRect.width();
             float viewportOffsetY = distanceY * currentViewport.height() / contentRect.height();
             setCurrentSurfaceSizeBuffer();
+            PLog.d(TAG, String.format("SURFACE BUFFER IS %s current viewport is %s", surfaceSizeBuffer.toString(), currentViewport.toString()));
             int scrolledX = (int) (surfaceSizeBuffer.x * (currentViewport.left + viewportOffsetX - X_MIN) / (X_MAX - X_MIN));
             int scrolledY = (int) (surfaceSizeBuffer.y * (currentViewport.top + viewportOffsetY - Y_MIN) / (Y_MAX - Y_MIN));
 
             boolean scrollableX = currentViewport.left > X_MIN || currentViewport.right < X_MAX;
             boolean scrollableY = currentViewport.top > Y_MIN || currentViewport.bottom < Y_MAX;
 
+            PLog.d(TAG, String.format("The big haus scrolledX %d scrolledY %d", scrolledX, scrolledY));
 
             setViewportTopLeft(currentViewport.left + viewportOffsetX, currentViewport.top + viewportOffsetY);
 
@@ -325,7 +370,6 @@ public class InteractiveImageView extends ImageView {
             scrollerStartViewport.set(currentViewport);
             int startX = (int)(surfaceSizeBuffer.x * (scrollerStartViewport.left - X_MIN) / (X_MAX - X_MIN));
             int startY = (int)(surfaceSizeBuffer.y * (scrollerStartViewport.top - Y_MIN) / (Y_MAX - Y_MIN));
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Fling coordinates %d %d", startX, startY));
             scroller.fling(
                     startX,
                     startY,
@@ -364,9 +408,10 @@ public class InteractiveImageView extends ImageView {
             float focusX = scaleGestureDetector.getFocusX();
             float focusY = scaleGestureDetector.getFocusY();
 
+            PLog.d(TAG, String.format("currentScale %f scaleFactor %f", scaleGestureDetector.getScaleFactor(), scaleFactor));
+
             if (contentRect.contains((int)focusX, (int)focusY)) {
                 setViewportFocus(focusX, focusY);
-                PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Viewport focus is now %f %f", viewportFocus.x, viewportFocus.y));
             }
 
             currentViewport.set(viewportFocus.x - newWidth * (focusX - contentRect.left) / contentRect.width(),
@@ -374,16 +419,18 @@ public class InteractiveImageView extends ImageView {
                     0, 0);
             currentViewport.right = currentViewport.left + newWidth;
             currentViewport.bottom = currentViewport.top + newHeight;
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Current viewport is now %s", currentViewport.toString()));
-            constrainViewport();
-            PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Constrained viewport is now %s", currentViewport.toString()));
-            lastSpanX = spanX;
+            //PLog.l(TAG, PLog.LogLevel.DEBUG, String.format("Current viewport is now %s", currentViewport.toString()));
 
+            constrainViewport();
+            lastSpanX = spanX;
             lastSpanY = spanY;
 
             scaleFactor *= scaleGestureDetector.getScaleFactor();
 
-            scaleFactor = Math.max(.99f, Math.min(scaleFactor, 5.0f));
+            PLog.d(TAG, String.format("Gesture Detector scale Factor %f", scaleGestureDetector.getScaleFactor()));
+
+            lastScaleFactor = scaleFactor = Math.max(maxScale, Math.min(scaleFactor, minScale));
+            zoomFocus.set(focusX, focusY);
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
 
             return true;
