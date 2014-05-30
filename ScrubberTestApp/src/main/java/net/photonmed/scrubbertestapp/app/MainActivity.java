@@ -1,8 +1,5 @@
 package net.photonmed.scrubbertestapp.app;
 
-import android.annotation.TargetApi;
-import android.os.Build;
-import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;

@@ -16,10 +16,6 @@ import android.widget.OverScroller;
  * Save Image location on screen rotation (need to stash the saved index somewhere.)
  * For some reason fullscreen mode doesn't dismiss the action bar on certain devices
  * Double tap zoomer
- *TODO:  Need to add a focal point adjustment for when the viewport gets constrained.  I think this can be done,
- *TODO   Via referencing the revised constraints on the viewport.  combine that with the previous values in
- *TODO   some way and that should get it working properly this should be done in constrain viewport since
- *TODO   ZOOM needs these values as well.
  */
 public class InteractiveImageView extends ImageView {
 
@@ -37,7 +33,6 @@ public class InteractiveImageView extends ImageView {
     private ScaleGestureDetector scaleDetector;
     private GestureDetector gestureDetector;
     private float scaleFactor = 1.f;
-    private float lastScaleFactor;//for double tap to zoom
     private Rect contentRect = new Rect();
     private PointF viewportFocus = new PointF();//abstraction for the currentviewport tracking
     private PointF zoomFocus = new PointF();
@@ -70,7 +65,6 @@ public class InteractiveImageView extends ImageView {
         scroller = new OverScroller(context);
         zoomer = new Zoomer(context, scaleFactor);
 
-        lastScaleFactor = scaleFactor;
 
         edgeEffectBottomActive = false;
         edgeEffectLeftActive = false;
@@ -317,7 +311,6 @@ public class InteractiveImageView extends ImageView {
                 viewportFocus.set(0,0);
                 zoomFocus.set(0,0);
                 currentViewport.set(X_MIN, Y_MIN, X_MAX, Y_MAX);
-                lastScaleFactor = scaleFactor;
                 zoomer.startZoom(maxScale);
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             } else if (contentRect.contains((int)useX, (int)useY)) {
@@ -326,7 +319,6 @@ public class InteractiveImageView extends ImageView {
                 zoomFocus.set(useX, useY);
                 float finalScaleFactor = scaleFactor + (scaleFactor * ZOOM_INCREMENT);
                 finalScaleFactor = Math.min(finalScaleFactor, minScale);
-                lastScaleFactor = scaleFactor;
                 zoomer.startZoom(finalScaleFactor);
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
             }
@@ -456,8 +448,6 @@ public class InteractiveImageView extends ImageView {
             scaleFactor *= scaleGestureDetector.getScaleFactor();
 
             PLog.d(TAG, String.format("Gesture Detector scale Factor %f", scaleGestureDetector.getScaleFactor()));
-
-            lastScaleFactor = scaleFactor = Math.max(maxScale, Math.min(scaleFactor, minScale));
 
             ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
 
