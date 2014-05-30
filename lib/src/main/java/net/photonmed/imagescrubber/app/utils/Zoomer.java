@@ -51,6 +51,8 @@ public class Zoomer {
      */
     private long mStartRTC;
 
+    private boolean mIsZoomIn = false;
+
     /**
      * The destination zoom factor.
      */
@@ -95,6 +97,11 @@ public class Zoomer {
     public void startZoom(float endZoom) {
         mStartRTC = SystemClock.elapsedRealtime();
         mEndZoom = endZoom;
+        if (mCurrentZoom > endZoom) {
+            mIsZoomIn = false;
+        } else {
+            mIsZoomIn = true;
+        }
 
         mFinished = false;
     }
@@ -118,7 +125,13 @@ public class Zoomer {
         }
 
         float t = tRTC * 1f / mAnimationDurationMillis;
-        mCurrentZoom = Math.max(mEndZoom * mInterpolator.getInterpolation(t), mCurrentZoom);
+        if (mIsZoomIn) {
+            mCurrentZoom = Math.max(mEndZoom * mInterpolator.getInterpolation(t), mCurrentZoom);
+        } else {
+            float currentInter = mInterpolator.getInterpolation(t);
+            float zoomInZee = mCurrentZoom * (mEndZoom - currentInter);
+            mCurrentZoom = Math.max(zoomInZee, mEndZoom);
+        }
         return true;
     }
 
