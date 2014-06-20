@@ -33,9 +33,3 @@ imageScrubber.setImageUris(myFileCollection);
 
 The test app included in the source provides an example of how to implement the widget properly.
 
-Known problems
-===================
-
-* There some weirdness when double tapping to zoom back out in the right hand corner.
-
-Feel free to submit issues with anything else you see.
