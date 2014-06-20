@@ -3,7 +3,7 @@ Image Scrubber View
 ======================
 
 Provides a mechanism for scrubbing through an array of images via a seekbar.  Additionally,
-provides a means to pan and zoom on the image itself.
+provides a means to pan and zoom on the image itself.  Compatible with Android versions down to Gingerbread (API 9)
 
 Download
 ======================
@@ -35,9 +35,6 @@ The test app included in the source shows how to implement this has a good examp
 
 Known problems
 ===================
-
-* The action bar doesn't seem to hide whenever the device doesn't use the capacitive home/back button included in
-the android framework
 
 * There some weirdness when double tapping to zoom back out in the right hand corner.
 

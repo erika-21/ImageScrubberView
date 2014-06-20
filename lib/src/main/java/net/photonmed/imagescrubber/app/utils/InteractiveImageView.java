@@ -305,7 +305,8 @@ public class InteractiveImageView extends ImageView {
             float useX = ev.getRawX();
             float useY = ev.getRawY();
             if (scaleFactor > maxScale) {
-                viewportFocus.set(0,0);
+                zoomFocus.set(contentRect.centerX(), contentRect.centerY());
+                viewportFocus.set(0, 0);
                 currentViewport.set(X_MIN, Y_MIN, X_MAX, Y_MAX);
                 zoomer.startZoom(maxScale);
                 ViewCompat.postInvalidateOnAnimation(InteractiveImageView.this);
