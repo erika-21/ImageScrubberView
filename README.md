@@ -1,6 +1,10 @@
 
 Image Scrubber View
 ======================
+<p align="center">
+ <img src="https://cloud.githubusercontent.com/assets/1221368/3345040/22eb0fba-f8b3-11e3-81af-869bf98a82af.gif" 
+ alt="Image Scrubber Demo" />
+</p>
 
 Provides a mechanism for scrubbing through an array of images via a seekbar.  Additionally,
 provides a means to pan and zoom on the image itself.  Compatible with Android versions down to Gingerbread (API 9)
