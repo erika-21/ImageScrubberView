@@ -31,7 +31,7 @@ Currently, you may create the view as usual:
 imageScrubber.setImageUris(myFileCollection); 
 ```
 
-The test app included in the source shows how to implement this has a good example of this.
+The test app included in the source provides an example of how to implement the widget properly.
 
 Known problems
 ===================
