@@ -2,8 +2,28 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    >
 
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout android:id="@+id/fullscreen_progress_widget"
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:background="@color/black_overlay"
+                      android:orientation="horizontal"
+                      tools:ignore="UselessParent">
+        <ProgressBar
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:id="@+id/downloaderProgress"
+            android:visibility="gone"
+            style="@style/Widget.AppCompat.Base.ProgressBar.Horizontal" />
+        </LinearLayout>
+
+    </FrameLayout>
     <net.photonmed.imagescrubber.app.utils.InteractiveImageView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
