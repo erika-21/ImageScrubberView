@@ -7,7 +7,7 @@ import android.util.Log;
  */
 public class PLog {
 
-    public static boolean Debug = true;
+    public static boolean Debug = false;
 
     public enum LogLevel {
         VERBOSE,
