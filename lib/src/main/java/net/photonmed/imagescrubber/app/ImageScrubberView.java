@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Parcel;
@@ -21,7 +22,7 @@ import android.widget.FrameLayout;
 import android.widget.ProgressBar;
 import android.widget.SeekBar;
 import com.squareup.picasso.Picasso;
-import net.photonmed.imagescrubber.app.utils.InteractiveImageView;
+import it.sephiroth.android.library.imagezoom.ImageViewTouch;
 import net.photonmed.imagescrubber.app.utils.PLog;
 import net.photonmed.imagescrubber.app.utils.SystemUiHider;
 import net.photonmed.imagescrubber.app.utils.threading.ImageParserThreadManager;
@@ -39,7 +40,7 @@ public class ImageScrubberView extends FrameLayout {
 
     private HashMap<Integer, byte[]> imageHashMap;
     private ArrayList<String> imageUris;
-    private InteractiveImageView imageView;
+    private ImageViewTouch imageView;
     private Activity activity;
     private SeekBar seekBar;
     private Context context;
@@ -114,7 +115,7 @@ public class ImageScrubberView extends FrameLayout {
         inflater.inflate(R.layout.main_scrubber, this, true);
 
         progressBar = (ProgressBar)findViewById(R.id.downloaderProgress);
-        imageView = (InteractiveImageView) findViewById(R.id.imageView);
+        imageView = (ImageViewTouch) findViewById(R.id.imageView);
         seekBar = (SeekBar) findViewById(R.id.seekBar);
 
         final View controlsView = findViewById(R.id.fullscreen_content_controls);
@@ -208,7 +209,8 @@ public class ImageScrubberView extends FrameLayout {
                         return;
                     }
                     imageView.getDrawable();
-                    imageView.setImageBitmap(BitmapFactory.decodeByteArray(bits, 0, bits.length));
+                    Matrix matrix = imageView.getDisplayMatrix();
+                    imageView.setImageBitmap(BitmapFactory.decodeByteArray(bits, 0, bits.length), matrix, 1f, 3f);
                 }
             }
         }
