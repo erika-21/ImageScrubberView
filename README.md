@@ -1,5 +1,5 @@
 
-Image Scrubber View
+Image Scrubber View - (Abandoned)
 ======================
 <p align="center">
  <img src="https://cloud.githubusercontent.com/assets/1221368/3345040/22eb0fba-f8b3-11e3-81af-869bf98a82af.gif" 
